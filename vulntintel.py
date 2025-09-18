@@ -1,8 +1,10 @@
 ## Retrieves vulnerability intelligence from multiple places
-import requests
+import argparse
 import json
 import os
-import argparse
+import re
+
+import requests
 
 def get_api_key():
     """Retrieve Greynoise API key from environment variable or configuration file."""
@@ -19,8 +21,23 @@ def get_api_key():
     
     return api_key
 
+_CVE_ID_PATTERN = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+
+
+def _validate_cve_id(cve_id):
+    """Validate that the supplied CVE identifier matches the expected format."""
+    if not isinstance(cve_id, str):
+        raise ValueError("CVE ID must be provided as a string")
+
+    if not _CVE_ID_PATTERN.fullmatch(cve_id):
+        raise ValueError("Invalid CVE ID format. Expected value like 'CVE-2021-44228'.")
+
+    return cve_id.upper()
+
+
 def fetch_cve_data(cve_id, api_key):
     """Fetch CVE data from the Greynoise API."""
+    cve_id = _validate_cve_id(cve_id)
     url = f"https://api.greynoise.io/v1/cve/{cve_id}"
     headers = {
         "accept": "application/json",
@@ -31,6 +48,7 @@ def fetch_cve_data(cve_id, api_key):
 
 def fetch_shodan_cve_data(cve_id):
     """Fetch CVE data from the Shodan CVEDB API."""
+    cve_id = _validate_cve_id(cve_id)
     url = f"https://cvedb.shodan.io/cve/{cve_id}"
     response = requests.get(url)
     if response.status_code == 200:
@@ -85,8 +103,9 @@ def main():
     
     try:
         api_key = get_api_key()
-        json_data = fetch_cve_data(args.cve_id, api_key)
-        shodan_data = fetch_shodan_cve_data(args.cve_id)
+        cve_id = _validate_cve_id(args.cve_id)
+        json_data = fetch_cve_data(cve_id, api_key)
+        shodan_data = fetch_shodan_cve_data(cve_id)
 
         formatted_text = format_output(json_data, shodan_data)
         

@@ -1,8 +1,24 @@
-import requests
-import sys
 import json
+import re
+import sys
+
+import requests
+
+_CVE_ID_PATTERN = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+
+
+def _validate_cve_id(cve_id):
+    if not isinstance(cve_id, str):
+        raise ValueError("CVE ID must be provided as a string")
+
+    if not _CVE_ID_PATTERN.fullmatch(cve_id):
+        raise ValueError("Invalid CVE ID format. Expected value like 'CVE-2021-44228'.")
+
+    return cve_id.upper()
+
 
 def fetch_cve_info(cve_id):
+    cve_id = _validate_cve_id(cve_id)
     url = f"https://cvedb.shodan.io/cve/{cve_id}"
     
     try:
@@ -24,7 +40,12 @@ if __name__ == "__main__":
         print("Usage: python script.py <CVE-ID>")
         sys.exit(1)
 
-    cve_id = sys.argv[1]  # Take CVE-ID from command-line argument
+    try:
+        cve_id = _validate_cve_id(sys.argv[1])  # Take CVE-ID from command-line argument
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        sys.exit(1)
+
     cve_info = fetch_cve_info(cve_id)
 
     if cve_info:
